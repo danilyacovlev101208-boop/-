@@ -6,33 +6,17 @@
     <title>Меню Бота</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Розовая цветовая палитра */
-        :root {
-            --bg-color: #fff0f5; /* Нежно-розовый фон */
-            --btn-color: #ff69b4; /* Ярко-розовые кнопки */
-            --btn-hover: #ff1493; /* Темно-розовый при нажатии */
-            --text-color: #4a0e2e; /* Темный текст для контраста */
-        }
-        
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--tg-theme-bg-color, #fff0f5);
+            color: var(--tg-theme-text-color, #4a0e2e);
             margin: 0;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
         }
-
-        h2 {
-            margin-bottom: 25px;
-            color: var(--btn-hover);
-            text-align: center;
-            font-size: 24px;
-        }
-
-        /* Сетка для красивого расположения кнопок */
         .menu-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -40,76 +24,48 @@
             width: 100%;
             max-width: 400px;
         }
-
-        /* Стили кнопок */
         .btn {
-            background-color: var(--btn-color);
+            background-color: #ff69b4;
             color: white;
             border: none;
-            border-radius: 16px;
             padding: 15px 10px;
-            font-size: 15px;
+            border-radius: 16px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255, 105, 180, 0.4);
-            transition: transform 0.1s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 4px 10px rgba(255, 105, 180, 0.4);
         }
-
-        .btn:active {
-            transform: scale(0.95);
-            background-color: var(--btn-hover);
-            box-shadow: 0 2px 5px rgba(255, 105, 180, 0.4);
-        }
-
-        /* Кнопка на всю ширину */
-        .btn.full-width {
-            grid-column: span 2;
-            flex-direction: row;
-            justify-content: center;
-            padding: 20px;
-            font-size: 18px;
-        }
-
-        .emoji {
-            font-size: 28px;
-        }
-        .btn.full-width .emoji {
-            margin-right: 10px;
-        }
+        .btn.full-width { grid-column: span 2; }
+        .btn:active { background-color: #ff1493; transform: scale(0.95); }
+        .emoji { font-size: 28px; }
     </style>
 </head>
 <body>
+
     <h2>💖 Панель Управления 💖</h2>
-    
+
     <div class="menu-grid">
         <button class="btn full-width" onclick="sendCmd('main_add_number')">
             <span class="emoji">📱</span> Добавить номер
         </button>
-        
         <button class="btn" onclick="sendCmd('main_my_numbers')">
             <span class="emoji">📋</span> Мои номера
         </button>
-        
         <button class="btn" onclick="sendCmd('main_stats')">
             <span class="emoji">📊</span> Статистика
         </button>
-        
         <button class="btn" onclick="sendCmd('main_withdraw')">
             <span class="emoji">💸</span> Вывод
         </button>
-        
         <button class="btn" onclick="sendCmd('main_open_service_menu')">
             <span class="emoji">⚙️</span> Сервис
         </button>
-        
         <button class="btn full-width" onclick="sendCmd('main_settings')">
             <span class="emoji">🛠</span> Настройки
         </button>
-        
         <button class="btn full-width" onclick="sendCmd('main_help')">
             <span class="emoji">🆘</span> Помощь
         </button>
@@ -117,13 +73,12 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Разворачиваем на весь экран
+        tg.expand();
         tg.ready();
 
-        // Функция отправки данных в бота
         function sendCmd(command) {
             tg.sendData(command);
-            tg.close(); // Закрываем окно после нажатия
+            tg.close();
         }
     </script>
 </body>
