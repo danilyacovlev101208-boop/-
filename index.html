@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление ботом</title>
+    
+    <!-- Обязательный скрипт для связи с Telegram -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        /* Базовые стили для красоты и адаптации под тему Telegram */
+        body {
+            font-family: sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        button {
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+        button:active {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Панель управления</h2>
+    <p>Нажмите кнопку ниже:</p>
+    
+    <!-- Кнопка, на которую будет нажимать пользователь -->
+    <button id="add_number_btn">📱 Добавить номер</button>
+
+    <script>
+        // Инициализируем Telegram Web App
+        let tg = window.Telegram.WebApp;
+        
+        // Расширяем Mini App на весь экран телефона
+        tg.expand();
+        
+        // Говорим Telegram, что наше приложение готово к отображению
+        tg.ready();
+
+        // Ловим нажатие на кнопку
+        document.getElementById('add_number_btn').addEventListener('click', function() {
+            // Отправляем текст "add_number_clicked" обратно в Python-бота
+            tg.sendData("add_number_clicked");
+            
+            // Автоматически закрываем Mini App после нажатия
+            tg.close();
+        });
+    </script>
+</body>
+</html>
