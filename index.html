@@ -3,67 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление ботом</title>
-    
-    <!-- Обязательный скрипт для связи с Telegram -->
+    <title>Меню Бота</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <style>
-        /* Базовые стили для красоты и адаптации под тему Telegram */
+        /* Розовая цветовая палитра */
+        :root {
+            --bg-color: #fff0f5; /* Нежно-розовый фон */
+            --btn-color: #ff69b4; /* Ярко-розовые кнопки */
+            --btn-hover: #ff1493; /* Темно-розовый при нажатии */
+            --text-color: #4a0e2e; /* Темный текст для контраста */
+        }
+        
         body {
-            font-family: sans-serif;
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
         }
-        button {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
+
+        h2 {
+            margin-bottom: 25px;
+            color: var(--btn-hover);
+            text-align: center;
+            font-size: 24px;
+        }
+
+        /* Сетка для красивого расположения кнопок */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* Стили кнопок */
+        .btn {
+            background-color: var(--btn-color);
+            color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 8px;
+            border-radius: 16px;
+            padding: 15px 10px;
+            font-size: 15px;
+            font-weight: bold;
             cursor: pointer;
-            margin-top: 20px;
-            width: 80%;
-            max-width: 300px;
+            box-shadow: 0 4px 10px rgba(255, 105, 180, 0.4);
+            transition: transform 0.1s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
-        button:active {
-            opacity: 0.8;
+
+        .btn:active {
+            transform: scale(0.95);
+            background-color: var(--btn-hover);
+            box-shadow: 0 2px 5px rgba(255, 105, 180, 0.4);
+        }
+
+        /* Кнопка на всю ширину */
+        .btn.full-width {
+            grid-column: span 2;
+            flex-direction: row;
+            justify-content: center;
+            padding: 20px;
+            font-size: 18px;
+        }
+
+        .emoji {
+            font-size: 28px;
+        }
+        .btn.full-width .emoji {
+            margin-right: 10px;
         }
     </style>
 </head>
 <body>
-
-    <h2>Панель управления</h2>
-    <p>Нажмите кнопку ниже:</p>
+    <h2>💖 Панель Управления 💖</h2>
     
-    <!-- Кнопка, на которую будет нажимать пользователь -->
-    <button id="add_number_btn">📱 Добавить номер</button>
+    <div class="menu-grid">
+        <button class="btn full-width" onclick="sendCmd('main_add_number')">
+            <span class="emoji">📱</span> Добавить номер
+        </button>
+        
+        <button class="btn" onclick="sendCmd('main_my_numbers')">
+            <span class="emoji">📋</span> Мои номера
+        </button>
+        
+        <button class="btn" onclick="sendCmd('main_stats')">
+            <span class="emoji">📊</span> Статистика
+        </button>
+        
+        <button class="btn" onclick="sendCmd('main_withdraw')">
+            <span class="emoji">💸</span> Вывод
+        </button>
+        
+        <button class="btn" onclick="sendCmd('main_open_service_menu')">
+            <span class="emoji">⚙️</span> Сервис
+        </button>
+        
+        <button class="btn full-width" onclick="sendCmd('main_settings')">
+            <span class="emoji">🛠</span> Настройки
+        </button>
+        
+        <button class="btn full-width" onclick="sendCmd('main_help')">
+            <span class="emoji">🆘</span> Помощь
+        </button>
+    </div>
 
     <script>
-        // Инициализируем Telegram Web App
-        let tg = window.Telegram.WebApp;
-        
-        // Расширяем Mini App на весь экран телефона
-        tg.expand();
-        
-        // Говорим Telegram, что наше приложение готово к отображению
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Разворачиваем на весь экран
         tg.ready();
 
-        // Ловим нажатие на кнопку
-        document.getElementById('add_number_btn').addEventListener('click', function() {
-            // Отправляем текст "add_number_clicked" обратно в Python-бота
-            tg.sendData("add_number_clicked");
-            
-            // Автоматически закрываем Mini App после нажатия
-            tg.close();
-        });
+        // Функция отправки данных в бота
+        function sendCmd(command) {
+            tg.sendData(command);
+            tg.close(); // Закрываем окно после нажатия
+        }
     </script>
 </body>
 </html>
