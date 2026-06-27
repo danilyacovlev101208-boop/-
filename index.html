@@ -3,169 +3,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Virtual Casino</title>
+    <title>Wild West Saloon Casino</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rye&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Базовые стили и цветовая палитра */
+        /* Ковбойский стиль: Цвета и текстуры */
         :root {
-            --primary: #00ffcc;
-            --primary-hover: #00e6b8;
-            --bg: #0d0e15;
-            --card-bg: #1a1c29;
-            --text: #e0e6ed;
-            --danger: #ff3366;
-            --success: #33ff99;
+            --wood-dark: #3e2723;
+            --wood-medium: #5d4037;
+            --wood-light: #8d6e63;
+            --paper: #f4e4bc;
+            --paper-dark: #d7ccc8;
+            --text-dark: #2c1a11;
+            --gold: #ffb300;
+            --red-suit: #d32f2f;
+            --black-suit: #212121;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
+            font-family: 'PT Sans', sans-serif;
+            /* Текстура деревянных досок */
+            background: repeating-linear-gradient(
+                to right,
+                #4e342e,
+                #4e342e 80px,
+                #3e2723 80px,
+                #3e2723 82px
+            );
+            color: var(--paper);
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
             overflow-x: hidden;
+            user-select: none;
         }
 
-        /* Шапка и баланс */
+        h1, h2, h3, .saloon-font {
+            font-family: 'Rye', cursive;
+            font-weight: normal;
+        }
+
+        /* Шапка салуна */
         header {
-            margin-top: 40px;
+            margin-top: 20px;
             text-align: center;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="none"><rect width="100" height="100" fill="%235d4037"/><path d="M0 0 L50 50 L100 0 Z" fill="%233e2723" opacity="0.3"/></svg>');
+            padding: 20px 50px;
+            border: 4px solid #2c1a11;
+            border-radius: 10px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.7);
+            position: relative;
         }
 
         h1 {
-            color: var(--primary);
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
-            margin-bottom: 10px;
+            color: var(--gold);
+            font-size: 3rem;
+            margin: 0;
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000;
+            letter-spacing: 2px;
         }
 
         .balance-board {
-            background: var(--card-bg);
-            padding: 15px 30px;
-            border-radius: 12px;
-            border: 1px solid rgba(0, 255, 204, 0.3);
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: var(--paper);
+            color: var(--text-dark);
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 2px dashed #8d6e63;
             font-size: 1.5rem;
-            display: inline-block;
-        }
-
-        .balance-amount {
-            color: var(--primary);
             font-weight: bold;
-            transition: color 0.3s;
+            margin-top: 15px;
+            display: inline-block;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
         }
 
-        /* Сетка игр */
-        .games-container {
-            display: flex;
-            gap: 30px;
-            margin-top: 50px;
-            flex-wrap: wrap;
-            justify-content: center;
+        /* Контейнеры экранов */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
             width: 100%;
             max-width: 900px;
-            padding: 0 20px;
-            box-sizing: border-box;
+            margin-top: 30px;
+            padding-bottom: 50px;
         }
 
-        .game-card {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 16px;
-            width: 320px;
+        .screen.active {
+            display: flex;
+        }
+
+        /* Главное меню */
+        .menu-grid {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .menu-card {
+            background: var(--paper);
+            color: var(--text-dark);
+            width: 250px;
+            padding: 20px;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-            border-top: 3px solid var(--primary);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .game-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 40px rgba(0, 255, 204, 0.2);
-        }
-
-        h2 {
-            color: #fff;
-            margin-top: 0;
-            font-weight: 600;
-        }
-
-        /* Элементы управления */
-        input[type="number"], select {
-            width: 80%;
-            padding: 12px;
-            margin: 15px 0;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.3);
-            color: #fff;
-            text-align: center;
-            font-size: 1rem;
-            outline: none;
-            transition: border 0.3s;
-        }
-
-        input[type="number"]:focus, select:focus {
-            border-color: var(--primary);
-        }
-
-        button {
-            background: transparent;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-            padding: 12px 25px;
-            font-size: 1.1rem;
-            font-weight: bold;
+            border: 4px solid var(--wood-dark);
+            border-radius: 10px;
             cursor: pointer;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
+            transition: transform 0.2s, background 0.2s;
+            position: relative;
+        }
+
+        .menu-card::before {
+            content: "Wanted";
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-5deg);
+            background: #d32f2f;
+            color: white;
+            font-family: 'Rye', cursive;
+            padding: 2px 10px;
+            border-radius: 3px;
+            font-size: 1.2rem;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .menu-card:hover {
+            transform: scale(1.05) rotate(2deg);
+            background: #fff3e0;
+        }
+
+        .menu-card h2 {
+            margin-top: 15px;
+            font-size: 2rem;
+            border-bottom: 2px solid var(--wood-light);
+            padding-bottom: 10px;
+        }
+
+        .menu-icon {
+            font-size: 4rem;
+            margin: 10px 0;
+        }
+
+        /* Кнопки и инпуты */
+        .controls {
+            background: var(--paper);
+            padding: 20px;
+            border-radius: 10px;
+            border: 3px solid var(--wood-dark);
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--text-dark);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
+        }
+
+        input[type="number"], select {
+            font-family: 'PT Sans', sans-serif;
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 2px solid var(--wood-dark);
+            border-radius: 5px;
+            background: #fff;
+            color: var(--text-dark);
+            width: 150px;
+            margin: 10px;
+            text-align: center;
+        }
+
+        button.btn-wood {
+            background: var(--wood-medium);
+            color: var(--paper);
+            font-family: 'Rye', cursive;
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            border: 3px solid var(--wood-dark);
             border-radius: 8px;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            width: 80%;
-            margin-top: 10px;
+            cursor: pointer;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.5);
+            transition: all 0.1s;
         }
 
-        button:hover {
-            background: var(--primary);
-            color: var(--bg);
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+        button.btn-wood:hover:not(:disabled) {
+            background: var(--wood-light);
+            transform: translateY(-2px);
         }
 
-        button:disabled {
-            border-color: #555;
-            color: #555;
+        button.btn-wood:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        button.btn-wood:disabled {
+            filter: grayscale(100%);
             cursor: not-allowed;
-            background: transparent;
-            box-shadow: none;
+            opacity: 0.7;
         }
 
-        .result-text {
-            margin-top: 20px;
-            min-height: 24px;
+        .back-btn {
+            margin-bottom: 20px;
+            background: transparent !important;
+            color: var(--paper) !important;
+            border-color: var(--paper) !important;
+        }
+
+        /* Специфичные стили игр */
+        .result-box {
+            font-size: 1.5rem;
+            margin-top: 15px;
             font-weight: bold;
-            font-size: 1.1rem;
+            min-height: 40px;
+        }
+
+        .win { color: #4caf50; text-shadow: 1px 1px 0 #000;}
+        .lose { color: #f44336; text-shadow: 1px 1px 0 #000;}
+
+        /* Стили игры "Дурак" */
+        .durak-board {
+            background: #2e7d32; /* Зеленое сукно */
+            border: 15px solid var(--wood-dark);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .hand {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: -20px;
+            min-height: 120px;
+        }
+
+        .playing-card {
+            width: 80px;
+            height: 115px;
+            background: white;
+            border: 1px solid #999;
+            border-radius: 8px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-left: -30px; /* Перекрытие карт */
+            transition: transform 0.2s, top 0.2s;
+            position: relative;
+            background-color: #fff;
+        }
+        
+        .playing-card:first-child { margin-left: 0; }
+
+        .playing-card.red { color: var(--red-suit); }
+        .playing-card.black { color: var(--black-suit); }
+
+        .playing-card.hidden {
+            background: repeating-linear-gradient(45deg, var(--red-suit), var(--red-suit) 10px, white 10px, white 20px);
+            color: transparent;
+        }
+
+        .player-hand .playing-card:hover {
+            transform: translateY(-15px);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .card-center {
+            font-size: 2.5rem;
+            align-self: center;
+        }
+
+        .card-bottom {
+            align-self: flex-end;
+            transform: rotate(180deg);
+        }
+
+        .table-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            min-height: 150px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .deck-area {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+        }
+
+        .trump-card {
+            transform: rotate(90deg) translateX(30px);
+            z-index: 1;
+        }
+
+        .deck-stack {
+            z-index: 2;
+        }
+
+        .game-status {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 5px;
         }
 
         /* Анимации */
-        @keyframes pulseWin {
-            0% { transform: scale(1); color: var(--success); text-shadow: 0 0 10px var(--success); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); color: var(--success); text-shadow: none; }
-        }
-
-        @keyframes pulseLose {
-            0% { transform: scale(1); color: var(--danger); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); color: var(--danger); }
-        }
-
-        @keyframes spin {
-            0% { transform: rotateY(0deg); }
-            100% { transform: rotateY(720deg); }
-        }
-
         @keyframes shake {
             0% { transform: translateX(0); }
             25% { transform: translateX(-5px) rotate(-5deg); }
@@ -173,153 +332,332 @@
             75% { transform: translateX(-5px) rotate(-5deg); }
             100% { transform: translateX(0); }
         }
-
-        .win { animation: pulseWin 0.6s ease forwards; }
-        .lose { animation: pulseLose 0.6s ease forwards; }
-        .spinning { display: inline-block; animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1); }
-        .shaking { display: inline-block; animation: shake 0.5s ease-in-out infinite; }
+        .shaking { animation: shake 0.5s ease-in-out infinite; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Neon Casino</h1>
+        <h1>Wild West Saloon</h1>
         <div class="balance-board">
-            Баланс: <span class="balance-amount" id="balanceDisplay">1000</span> 🪙
+            Золото: <span id="balanceDisplay" style="color: #d32f2f;">1000</span> $
         </div>
     </header>
 
-    <main class="games-container">
-        
-        <div class="game-card">
-            <h2>🎲 Кости против Бота</h2>
-            <p>У кого выпадет больше, тот забирает всё!</p>
-            <input type="number" id="diceBet" placeholder="Сумма ставки" min="1" value="50">
-            <button id="btnDice" onclick="playDice()">Бросить кости</button>
-            <div class="result-text" id="diceResult"></div>
+    <!-- ГЛАВНОЕ МЕНЮ -->
+    <main id="menu-screen" class="screen active">
+        <h2 class="saloon-font" style="font-size: 2.5rem;">Выбери игру, ковбой:</h2>
+        <div class="menu-grid">
+            <div class="menu-card" onclick="showScreen('dice-screen')">
+                <div class="menu-icon">🎲</div>
+                <h2>Кости</h2>
+                <p>Бросай кости против бармена. Кто больше, тот и забирает банк.</p>
+            </div>
+            <div class="menu-card" onclick="showScreen('coin-screen')">
+                <div class="menu-icon">🪙</div>
+                <h2>Монетка</h2>
+                <p>Орел или Решка? Угадай сторону и удвой свои деньги.</p>
+            </div>
+            <div class="menu-card" onclick="showScreen('durak-screen')">
+                <div class="menu-icon">🃏</div>
+                <h2>Дурак</h2>
+                <p>Карточная дуэль 1 на 1. Оставь бота в "дураках".</p>
+            </div>
         </div>
+    </main>
 
-        <div class="game-card">
-            <h2>🪙 Орёл или Решка</h2>
-            <p>Угадай сторону монеты и удвой ставку.</p>
+    <!-- ИГРА: КОСТИ -->
+    <main id="dice-screen" class="screen">
+        <button class="btn-wood back-btn" onclick="showScreen('menu-screen')">← В салун</button>
+        <div class="controls">
+            <h2>🎲 Кости</h2>
+            <input type="number" id="diceBet" placeholder="Ставка" min="10" value="50">
+            <br>
+            <button class="btn-wood" id="btnDice" onclick="playDice()">Бросить кости</button>
+            <div class="result-box" id="diceResult"></div>
+        </div>
+    </main>
+
+    <!-- ИГРА: ОРЕЛ ИЛИ РЕШКА -->
+    <main id="coin-screen" class="screen">
+        <button class="btn-wood back-btn" onclick="showScreen('menu-screen')">← В салун</button>
+        <div class="controls">
+            <h2>🪙 Орел или Решка</h2>
             <select id="coinChoice">
                 <option value="heads">Орёл</option>
                 <option value="tails">Решка</option>
             </select>
-            <input type="number" id="coinBet" placeholder="Сумма ставки" min="1" value="50">
-            <button id="btnCoin" onclick="playCoin()">Подбросить</button>
-            <div class="result-text" id="coinResult"></div>
+            <input type="number" id="coinBet" placeholder="Ставка" min="10" value="50">
+            <br>
+            <button class="btn-wood" id="btnCoin" onclick="playCoin()">Подбросить</button>
+            <div class="result-box" id="coinResult"></div>
+        </div>
+    </main>
+
+    <!-- ИГРА: ДУРАК -->
+    <main id="durak-screen" class="screen">
+        <button class="btn-wood back-btn" onclick="endDurakGame(true)">← В салун</button>
+        
+        <!-- Настройки до начала игры -->
+        <div class="controls" id="durakSetup">
+            <h2>🃏 Дурак (Упрощенный)</h2>
+            <p><i>Правила: По 1 карте за ход (без подкидывания). Кто первый скинет карты — победил.</i></p>
+            <input type="number" id="durakBet" placeholder="Ставка" min="10" value="100">
+            <br>
+            <button class="btn-wood" onclick="startDurakGame()">Раздать карты</button>
+            <div class="result-box" id="durakSetupResult"></div>
         </div>
 
+        <!-- Игровой стол -->
+        <div class="durak-board" id="durakBoard">
+            <div class="game-status" id="durakStatus">Игра началась!</div>
+            
+            <div class="hand bot-hand" id="botHandUI">
+                <!-- Карты бота -->
+            </div>
+
+            <div class="table-area">
+                <div class="deck-area" id="deckUI">
+                    <!-- Колода и козырь -->
+                </div>
+                
+                <div id="tableAttackUI"></div>
+                <div id="tableDefendUI"></div>
+            </div>
+
+            <div style="text-align: center; min-height: 45px;">
+                <button class="btn-wood" id="btnTakeCards" style="display: none;" onclick="playerTake()">Взять карты</button>
+            </div>
+
+            <div class="hand player-hand" id="playerHandUI">
+                <!-- Карты игрока -->
+            </div>
+        </div>
     </main>
 
     <script>
-        // Инициализация баланса
+        /* --- ОБЩАЯ СИСТЕМА --- */
         let balance = 1000;
         const balanceDisplay = document.getElementById('balanceDisplay');
 
-        // Функция обновления баланса с легкой анимацией
         function updateBalance(amount) {
             balance += amount;
             balanceDisplay.innerText = balance;
-            balanceDisplay.style.color = amount > 0 ? 'var(--success)' : (amount < 0 ? 'var(--danger)' : 'var(--primary)');
-            setTimeout(() => {
-                balanceDisplay.style.color = 'var(--primary)';
-            }, 500);
         }
 
-        // Проверка корректности ставки
         function validateBet(betAmount) {
-            if (isNaN(betAmount) || betAmount <= 0) {
-                return "Ставка должна быть больше нуля!";
-            }
-            if (betAmount > balance) {
-                return "Недостаточно средств на балансе!";
-            }
+            if (isNaN(betAmount) || betAmount <= 0) return "Ставка должна быть больше нуля!";
+            if (betAmount > balance) return "Недостаточно золота!";
             return null;
         }
 
-        // Логика игры "Кости"
-        function playDice() {
-            const betInput = document.getElementById('diceBet');
-            const resultDiv = document.getElementById('diceResult');
-            const btn = document.getElementById('btnDice');
-            const bet = parseInt(betInput.value);
-
-            const error = validateBet(bet);
-            if (error) {
-                resultDiv.className = 'result-text lose';
-                resultDiv.innerText = error;
-                return;
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            
+            // Если выходим из Дурака, сбрасываем стол
+            if(screenId === 'menu-screen' && isDurakPlaying) {
+                endDurakGame(true);
             }
-
-            // Блокируем кнопку и показываем анимацию
-            btn.disabled = true;
-            resultDiv.className = 'result-text shaking';
-            resultDiv.innerText = "🎲 Бросаем кости...";
-
-            setTimeout(() => {
-                const playerRoll = Math.floor(Math.random() * 6) + 1;
-                const botRoll = Math.floor(Math.random() * 6) + 1;
-
-                resultDiv.className = 'result-text';
-                
-                if (playerRoll > botRoll) {
-                    updateBalance(bet);
-                    resultDiv.innerHTML = `Ты: ${playerRoll} | Бот: ${botRoll}<br>Ты выиграл ${bet} 🪙!`;
-                    resultDiv.classList.add('win');
-                } else if (playerRoll < botRoll) {
-                    updateBalance(-bet);
-                    resultDiv.innerHTML = `Ты: ${playerRoll} | Бот: ${botRoll}<br>Ты проиграл ${bet} 🪙.`;
-                    resultDiv.classList.add('lose');
-                } else {
-                    resultDiv.innerHTML = `Ты: ${playerRoll} | Бот: ${botRoll}<br>Ничья! Ставка возвращена.`;
-                    resultDiv.style.color = 'var(--text)';
-                }
-                btn.disabled = false;
-            }, 1000);
         }
 
-        // Логика игры "Орел или Решка"
+        /* --- ИГРА: КОСТИ --- */
+        function playDice() {
+            const bet = parseInt(document.getElementById('diceBet').value);
+            const res = document.getElementById('diceResult');
+            const btn = document.getElementById('btnDice');
+            
+            const error = validateBet(bet);
+            if(error) { res.innerHTML = `<span class="lose">${error}</span>`; return; }
+
+            btn.disabled = true;
+            res.className = 'result-box shaking';
+            res.innerText = "Гремят кости...";
+
+            setTimeout(() => {
+                const player = Math.floor(Math.random() * 6) + 1;
+                const bot = Math.floor(Math.random() * 6) + 1;
+                res.className = 'result-box';
+                
+                if (player > bot) {
+                    updateBalance(bet);
+                    res.innerHTML = `Ты: ${player} | Бармен: ${bot}<br><span class="win">+${bet}$</span>`;
+                } else if (player < bot) {
+                    updateBalance(-bet);
+                    res.innerHTML = `Ты: ${player} | Бармен: ${bot}<br><span class="lose">-${bet}$</span>`;
+                } else {
+                    res.innerHTML = `Ты: ${player} | Бармен: ${bot}<br>Ничья. Деньги остаются.`;
+                }
+                btn.disabled = false;
+            }, 800);
+        }
+
+        /* --- ИГРА: ОРЕЛ ИЛИ РЕШКА --- */
         function playCoin() {
-            const betInput = document.getElementById('coinBet');
-            const choiceInput = document.getElementById('coinChoice');
-            const resultDiv = document.getElementById('coinResult');
+            const bet = parseInt(document.getElementById('coinBet').value);
+            const choice = document.getElementById('coinChoice').value;
+            const res = document.getElementById('coinResult');
             const btn = document.getElementById('btnCoin');
-            const bet = parseInt(betInput.value);
-            const choice = choiceInput.value;
 
             const error = validateBet(bet);
-            if (error) {
-                resultDiv.className = 'result-text lose';
-                resultDiv.innerText = error;
-                return;
-            }
+            if(error) { res.innerHTML = `<span class="lose">${error}</span>`; return; }
 
-            // Блокируем кнопку и показываем анимацию вращения
             btn.disabled = true;
-            resultDiv.className = 'result-text spinning';
-            resultDiv.innerText = "🪙 Монета летит...";
+            res.className = 'result-box shaking';
+            res.innerText = "Монета в воздухе...";
 
             setTimeout(() => {
                 const isHeads = Math.random() >= 0.5;
-                const coinResult = isHeads ? 'heads' : 'tails';
-                const coinName = isHeads ? 'Орёл' : 'Решка';
+                const result = isHeads ? 'heads' : 'tails';
+                const name = isHeads ? 'Орёл' : 'Решка';
+                res.className = 'result-box';
 
-                resultDiv.className = 'result-text';
-
-                if (choice === coinResult) {
+                if (choice === result) {
                     updateBalance(bet);
-                    resultDiv.innerHTML = `Выпал(а) ${coinName}.<br>Ты выиграл ${bet} 🪙!`;
-                    resultDiv.classList.add('win');
+                    res.innerHTML = `Выпал ${name}!<br><span class="win">+${bet}$</span>`;
                 } else {
                     updateBalance(-bet);
-                    resultDiv.innerHTML = `Выпал(а) ${coinName}.<br>Ты проиграл ${bet} 🪙.`;
-                    resultDiv.classList.add('lose');
+                    res.innerHTML = `Выпал ${name}.<br><span class="lose">-${bet}$</span>`;
                 }
                 btn.disabled = false;
-            }, 1000);
+            }, 800);
         }
-    </script>
-</body>
-</html>
+
+        /* --- ИГРА: ДУРАК (Мини-версия) --- */
+        const suits = ['♠', '♥', '♦', '♣'];
+        const values = [6, 7, 8, 9, 10, 11, 12, 13, 14]; // 11=J, 12=Q, 13=K, 14=A
+        const valueNames = {11:'J', 12:'Q', 13:'K', 14:'A'};
+
+        let deck = [], playerHand = [], botHand = [];
+        let trumpCard = null;
+        let tableAttack = null, tableDefend = null;
+        let isPlayerTurn = true; // Кто сейчас атакует
+        let gamePhase = 'attack'; // 'attack' или 'defend'
+        let currentBet = 0;
+        let isDurakPlaying = false;
+
+        function createDeck() {
+            let newDeck = [];
+            for (let s of suits) {
+                for (let v of values) {
+                    newDeck.push({ suit: s, value: v, name: valueNames[v] || v, color: (s==='♥'||s==='♦') ? 'red' : 'black' });
+                }
+            }
+            // Перемешивание (Алгоритм Фишера-Йетса)
+            for (let i = newDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+            }
+            return newDeck;
+        }
+
+        function renderCard(card, isHidden = false, onClick = null) {
+            if (!card) return '';
+            if (isHidden) {
+                return `<div class="playing-card hidden"></div>`;
+            }
+            return `
+                <div class="playing-card ${card.color}" ${onClick ? `onclick="${onClick}"` : ''}>
+                    <div>${card.name}${card.suit}</div>
+                    <div class="card-center">${card.suit}</div>
+                    <div class="card-bottom">${card.name}${card.suit}</div>
+                </div>
+            `;
+        }
+
+        function updateDurakUI() {
+            // Карты бота (скрыты)
+            const botUI = document.getElementById('botHandUI');
+            botUI.innerHTML = '';
+            for(let i=0; i<botHand.length; i++) botUI.innerHTML += renderCard(null, true);
+
+            // Колода и козырь
+            const deckUI = document.getElementById('deckUI');
+            if (deck.length > 0) {
+                deckUI.innerHTML = `
+                    <div class="trump-card">${renderCard(trumpCard)}</div>
+                    <div class="playing-card hidden deck-stack" style="position:absolute; left: 15px;">
+                        <span style="color:black; background:white; padding:2px; border-radius:3px; position:absolute; top:40%; left:25%; font-size:1rem;">${deck.length}</span>
+                    </div>
+                `;
+            } else if (trumpCard && deck.length === 0) {
+                deckUI.innerHTML = `<div style="opacity:0.5">${renderCard(trumpCard)}</div>`;
+            } else {
+                deckUI.innerHTML = '';
+            }
+
+            // Стол
+            document.getElementById('tableAttackUI').innerHTML = tableAttack ? renderCard(tableAttack) : '';
+            document.getElementById('tableDefendUI').innerHTML = tableDefend ? renderCard(tableDefend) : '';
+
+            // Карты игрока
+            const playerUI = document.getElementById('playerHandUI');
+            playerUI.innerHTML = '';
+            playerHand.forEach((card, index) => {
+                playerUI.innerHTML += renderCard(card, false, `playerClickCard(${index})`);
+            });
+
+            // Кнопка "Взять"
+            document.getElementById('btnTakeCards').style.display = (!isPlayerTurn && gamePhase === 'defend' && tableAttack) ? 'inline-block' : 'none';
+
+            // Статус
+            const statusBox = document.getElementById('durakStatus');
+            if(isPlayerTurn && gamePhase === 'attack') statusBox.innerText = "Ваш ход (Выберите карту для атаки)";
+            else if(!isPlayerTurn && gamePhase === 'defend') statusBox.innerText = "Бот атаковал! Отбивайтесь или берите.";
+            else statusBox.innerText = "Ожидание...";
+        }
+
+        function startDurakGame() {
+            const betInput = document.getElementById('durakBet');
+            const res = document.getElementById('durakSetupResult');
+            const bet = parseInt(betInput.value);
+
+            const error = validateBet(bet);
+            if(error) { res.innerHTML = `<span class="lose">${error}</span>`; return; }
+
+            updateBalance(-bet); // Снимаем ставку в банк
+            currentBet = bet;
+            isDurakPlaying = true;
+
+            document.getElementById('durakSetup').style.display = 'none';
+            document.getElementById('durakBoard').style.display = 'flex';
+
+            deck = createDeck();
+            playerHand = [];
+            botHand = [];
+            tableAttack = null;
+            tableDefend = null;
+            
+            // Раздача по 6
+            for(let i=0; i<6; i++) {
+                playerHand.push(deck.pop());
+                botHand.push(deck.pop());
+            }
+            trumpCard = deck[0]; // Козырь - нижняя карта
+
+            isPlayerTurn = true; // Для простоты всегда начинаем мы
+            gamePhase = 'attack';
+            
+            // Сортировка руки игрока (не козыри, потом козыри по масти и значению)
+            sortHand(playerHand);
+            updateDurakUI();
+        }
+
+        function sortHand(hand) {
+            hand.sort((a, b) => {
+                const aIsTrump = a.suit === trumpCard.suit;
+                const bIsTrump = b.suit === trumpCard.suit;
+                if(aIsTrump && !bIsTrump) return 1;
+                if(!aIsTrump && bIsTrump) return -1;
+                if(a.suit === b.suit) return a.value - b.value;
+                return a.suit.localeCompare(b.suit);
+            });
+        }
+
+        function drawCards() {
+            // Кто атаковал, берет первым
+            if (isPlayerTurn) {
+                while(playerHand.length < 6 && deck.length > 0) playerHand.push(deck.pop());
+                while(botHand.length < 6 && deck.length > 0) botHand.push(deck.pop());
+            } else {
+                while(botHand.length < 6 && deck.length > 0) botHand.push(deck.popNormally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
