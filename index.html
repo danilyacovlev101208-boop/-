@@ -1,52 +1,3 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const mongoose = require('mongoose');
-const cors = require('cors');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ---------- ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ----------
-// Замените строку подключения на свою (например, MongoDB Atlas)
-const MONGO_URI = 'mongodb://localhost:27017/saloon';
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB error:', err));
-
-// ---------- МОДЕЛИ ----------
-const UserSchema = new mongoose.Schema({
-  nickname: { type: String, unique: true, required: true },
-  balance: { type: Number, default: 1000 }
-});
-const User = mongoose.model('User', UserSchema);
-
-const RoomSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  gameType: { type: String, enum: ['dice', 'coin', 'cards'], required: true },
-  maxPlayers: { type: Number, default: 3 },
-  players: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  status: { type: String, enum: ['waiting', 'playing', 'finished'], default: 'waiting' },
-  bet: { type: Number, default: 50 },
-  // Дополнительные поля для состояния игры (хранятся в памяти на сервере, но можно и в БД)
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-const Room = mongoose.model('Room', RoomSchema);
-
-// ---------- ХРАНИЛИЩЕ СОСТОЯНИЙ ИГР (в памяти) ----------
-const gameStates = new Map(); // roomId -> { ... }
-
-// ---------- HTTP СЕРВЕР ----------
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: { origin: '*' }
-});
-
-// ---------- ВСТРОЕННЫЙ HTML (КЛИЕНТ) ----------
-const HTML = `
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -54,7 +5,6 @@ const HTML = `
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wild West Saloon</title>
     <link href="https://fonts.googleapis.com/css2?family=Rye&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
             --wood-dark: #3e2723; --wood-med: #5d4037; --wood-light: #8d6e63;
@@ -77,6 +27,7 @@ const HTML = `
             background: var(--paper); color: var(--text-dark); padding: 5px 15px;
             border: 2px dashed #8d6e63; font-size: 1.5rem; font-weight: bold; margin-top: 10px; display: inline-block;
         }
+
         .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 900px; margin-top: 20px; }
         .screen.active { display: flex; }
 
@@ -109,19 +60,12 @@ const HTML = `
         .result-box { font-size: 1.3rem; margin-top: 15px; font-weight: bold; min-height: 40px; }
         .win { color: #2e7d32; } .lose { color: #c62828; }
 
-        .room-list { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
-        .room-card {
-            background: var(--paper); color: var(--text-dark); padding: 15px; border-radius: 10px;
-            border: 3px solid var(--wood-dark); width: 250px; box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
-        }
-        .room-card button { margin-top: 10px; }
-
-        .game-board {
+        /* Карточный стол */
+        .board {
             background: #2e7d32; border: 10px solid var(--wood-dark); border-radius: 15px;
             width: 100%; max-width: 800px; padding: 20px; box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+            display: none; flex-direction: column; gap: 15px; position: relative;
         }
-        .players-info { display: flex; justify-content: space-around; color: white; margin-bottom: 10px; }
-        .player-box { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; min-width: 120px; }
         .hand { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; min-height: 110px; }
         .card {
             width: 70px; height: 100px; background: white; border: 1px solid #999; border-radius: 5px;
@@ -130,705 +74,221 @@ const HTML = `
         }
         .card.red { color: #d32f2f; } .card.black { color: #212121; }
         .card.hidden { background: repeating-linear-gradient(45deg, #d32f2f, #d32f2f 10px, white 10px, white 20px); color: transparent; cursor: default; }
-        .dice-result { font-size: 2rem; margin: 10px; }
-        .coin-result { font-size: 2rem; margin: 10px; }
+        .hand.player .card:hover { transform: translateY(-10px); }
+        .table-area { display: flex; justify-content: center; align-items: center; gap: 20px; min-height: 120px; background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .deck-area { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; }
+        .trump-card { transform: rotate(90deg) translateX(20px); z-index: 1; }
+        .deck-stack { z-index: 2; position: absolute; left: 10px; }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-5deg); } 75% { transform: translateX(5px) rotate(5deg); } }
+        .anim-shake { animation: shake 0.4s ease infinite; }
     </style>
 </head>
 <body>
 
     <header>
         <h1>Wild West Saloon</h1>
-        <div class="balance-board">Золото: <span id="balance">1000</span> $</div>
+        <div class="balance-board">Золото: <span id="balance" style="color: #d32f2f;">1000</span> $</div>
     </header>
 
-    <!-- ЭКРАН ВХОДА -->
-    <div id="loginScreen" class="screen active">
-        <div class="controls" style="margin-top:50px;">
-            <h2>🏜️ Добро пожаловать!</h2>
-            <p>Введите ваш ковбойский ник</p>
-            <input type="text" id="nickInput" placeholder="Ник" value="Cowboy" style="width:200px;">
-            <br><button class="btn-wood" onclick="login()">Войти в салун</button>
-            <div id="loginError" style="color:red; margin-top:10px;"></div>
+    <div id="menu" class="screen active">
+        <h2 class="saloon-font">Выбери игру:</h2>
+        <div class="menu-grid">
+            <div class="menu-card" onclick="nav('dice')"><div class="menu-icon">🎲</div><h2>Кости</h2></div>
+            <div class="menu-card" onclick="nav('coin')"><div class="menu-icon">🪙</div><h2>Монетка</h2></div>
+            <div class="menu-card" onclick="nav('cards')"><div class="menu-icon">🃏</div><h2>Дурак</h2></div>
         </div>
     </div>
 
-    <!-- ЛОББИ (СПИСОК КОМНАТ) -->
-    <div id="lobbyScreen" class="screen">
-        <div style="width:100%; max-width:900px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 class="saloon-font">🤠 Комнаты</h2>
-                <button class="btn-wood" onclick="showCreateRoom()">➕ Создать комнату</button>
-            </div>
-            <div id="roomList" class="room-list"></div>
-        </div>
-    </div>
-
-    <!-- ФОРМА СОЗДАНИЯ КОМНАТЫ -->
-    <div id="createRoomScreen" class="screen">
-        <button class="btn-wood back-btn" onclick="nav('lobbyScreen')">← Назад</button>
+    <div id="dice" class="screen">
+        <button class="btn-wood back-btn" onclick="nav('menu')">← В салун</button>
         <div class="controls">
-            <h2>Создать комнату</h2>
-            <input type="text" id="roomName" placeholder="Название" value="Салун #1">
-            <select id="gameTypeSelect">
-                <option value="dice">🎲 Кости</option>
-                <option value="coin">🪙 Монетка</option>
-                <option value="cards">🃏 Дурак</option>
-            </select>
-            <input type="number" id="roomBet" value="50" min="10">
-            <br><button class="btn-wood" onclick="createRoom()">Создать</button>
-            <div id="createError" style="color:red;"></div>
+            <h2>🎲 Кости</h2>
+            <input type="number" id="diceBet" value="50" min="10">
+            <br><button class="btn-wood" id="btnDice" onclick="playDice()">Бросить</button>
+            <div class="result-box" id="diceRes"></div>
         </div>
     </div>
 
-    <!-- ИГРОВОЙ ЭКРАН -->
-    <div id="gameScreen" class="screen">
-        <button class="btn-wood back-btn" onclick="leaveRoom()">← Покинуть комнату</button>
-        <div id="gameContainer" class="game-board">
-            <div id="gameStatus" style="text-align:center; color:white; font-size:1.5rem; margin-bottom:10px;"></div>
-            <div id="gameContent"></div>
+    <div id="coin" class="screen">
+        <button class="btn-wood back-btn" onclick="nav('menu')">← В салун</button>
+        <div class="controls">
+            <h2>🪙 Монетка</h2>
+            <select id="coinPick"><option value="heads">Орёл</option><option value="tails">Решка</option></select>
+            <input type="number" id="coinBet" value="50" min="10">
+            <br><button class="btn-wood" id="btnCoin" onclick="playCoin()">Бросить</button>
+            <div class="result-box" id="coinRes"></div>
+        </div>
+    </div>
+
+    <div id="cards" class="screen">
+        <button class="btn-wood back-btn" onclick="endCards()">← В салун</button>
+        
+        <div class="controls" id="cardsSetup">
+            <h2>🃏 Дуэль в Дурака</h2>
+            <p>Упрощенный 1 на 1. Ходим по 1 карте. Банк достанется победителю.</p>
+            <input type="number" id="cardsBet" value="100" min="10">
+            <br><button class="btn-wood" onclick="startCards()">Сдать карты</button>
+            <div class="result-box" id="cardsRes"></div>
+        </div>
+
+        <div class="board" id="board">
+            <div style="text-align:center; color:white; font-weight:bold; font-size:1.2rem;" id="gameStatus"></div>
+            <div class="hand" id="botHand"></div>
+            <div class="table-area">
+                <div class="deck-area" id="deckArea"></div>
+                <div id="tableAttack"></div>
+                <div id="tableDefend"></div>
+            </div>
+            <div style="text-align: center; height: 40px;">
+                <button class="btn-wood" id="btnTake" style="display:none;" onclick="playerTake()">Взять карты</button>
+            </div>
+            <div class="hand player" id="playerHand"></div>
         </div>
     </div>
 
     <script>
-        // ---------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ----------
-        let socket = null;
-        let currentUser = null;
-        let currentRoom = null;
-        let isInRoom = false;
+        let bal = 1000;
+        const uiBal = document.getElementById('balance');
+        
+        function updateBal(amt) { bal += amt; uiBal.innerText = bal; }
+        function nav(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+        function checkBet(b) { if(isNaN(b) || b<=0) return "Ставка неверна!"; if(b>bal) return "Мало золота!"; return null; }
 
-        // ---------- НАВИГАЦИЯ ----------
-        function nav(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+        // --- МИНИ-ИГРЫ (Кости и Монетка) ---
+        function playDice() {
+            let b = parseInt(document.getElementById('diceBet').value), res = document.getElementById('diceRes'), btn = document.getElementById('btnDice');
+            let err = checkBet(b); if(err){ res.innerHTML=`<span class='lose'>${err}</span>`; return; }
+            btn.disabled = true; res.className = 'result-box anim-shake'; res.innerText = "Гремят кости...";
+            setTimeout(() => {
+                let p = Math.floor(Math.random()*6)+1, c = Math.floor(Math.random()*6)+1;
+                res.className = 'result-box';
+                if(p>c) { updateBal(b); res.innerHTML=`Ты: ${p} | Бармен: ${c}<br><span class='win'>+${b}$</span>`; }
+                else if(p<c) { updateBal(-b); res.innerHTML=`Ты: ${p} | Бармен: ${c}<br><span class='lose'>-${b}$</span>`; }
+                else { res.innerHTML=`Ты: ${p} | Бармен: ${c}<br>Ничья!`; }
+                btn.disabled = false;
+            }, 600);
         }
 
-        // ---------- АВТОРИЗАЦИЯ ----------
-        async function login() {
-            const nickname = document.getElementById('nickInput').value.trim();
-            if (!nickname) return;
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname })
-                });
-                const data = await res.json();
-                if (data.error) {
-                    document.getElementById('loginError').innerText = data.error;
-                    return;
-                }
-                currentUser = data.user;
-                document.getElementById('balance').innerText = currentUser.balance;
-                // Подключаем сокет
-                socket = io();
-                socket.emit('setUser', currentUser._id);
-                // Слушаем события
-                socket.on('roomUpdate', updateRoomList);
-                socket.on('gameState', renderGameState);
-                socket.on('gameResult', handleGameResult);
-                socket.on('roomDeleted', () => { leaveRoom(); });
-                // Переходим в лобби
-                nav('lobbyScreen');
-                loadRooms();
-            } catch (e) {
-                document.getElementById('loginError').innerText = 'Ошибка соединения';
+        function playCoin() {
+            let b = parseInt(document.getElementById('coinBet').value), choice = document.getElementById('coinPick').value;
+            let res = document.getElementById('coinRes'), btn = document.getElementById('btnCoin');
+            let err = checkBet(b); if(err){ res.innerHTML=`<span class='lose'>${err}</span>`; return; }
+            btn.disabled = true; res.className = 'result-box anim-shake'; res.innerText = "Звенит монета...";
+            setTimeout(() => {
+                let isH = Math.random()>=0.5; let result = isH ? 'heads' : 'tails'; let name = isH ? 'Орёл' : 'Решка';
+                res.className = 'result-box';
+                if(choice === result) { updateBal(b); res.innerHTML=`Выпал ${name}!<br><span class='win'>+${b}$</span>`; }
+                else { updateBal(-b); res.innerHTML=`Выпал ${name}.<br><span class='lose'>-${b}$</span>`; }
+                btn.disabled = false;
+            }, 600);
+        }
+
+        // --- ДУРАК ---
+        const suits = ['♠','♥','♦','♣'], vals = [6,7,8,9,10,11,12,13,14], vNames = {11:'J',12:'Q',13:'K',14:'A'};
+        let deck = [], pHand = [], bHand = [], trump = null, tAtt = null, tDef = null;
+        let isPTurn = true, phase = 'idle', curBet = 0;
+
+        function endCards() { nav('menu'); document.getElementById('cardsSetup').style.display = 'block'; document.getElementById('board').style.display = 'none'; }
+        
+        function makeCardHTML(c, hidden=false, onclick='') {
+            if(!c) return '';
+            if(hidden) return `<div class="card hidden"></div>`;
+            return `<div class="card ${c.color}" ${onclick}>
+                <div>${c.n}${c.s}</div><div style="font-size:2rem; align-self:center;">${c.s}</div><div style="align-self:flex-end; transform:rotate(180deg);">${c.n}${c.s}</div>
+            </div>`;
+        }
+
+        function renderCards() {
+            document.getElementById('botHand').innerHTML = bHand.map(c => makeCardHTML(c, true)).join('');
+            
+            let dHTML = '';
+            if(deck.length>0) dHTML = `<div class="trump-card">${makeCardHTML(trump)}</div><div class="card hidden deck-stack"><div style="background:white; color:black; padding:2px; font-size:14px; position:absolute; top:35%; left:30%; border-radius:3px;">${deck.length}</div></div>`;
+            else if(trump && deck.length===0) dHTML = `<div style="opacity:0.5">${makeCardHTML(trump)}</div>`;
+            document.getElementById('deckArea').innerHTML = dHTML;
+
+            document.getElementById('tableAttack').innerHTML = makeCardHTML(tAtt);
+            document.getElementById('tableDefend').innerHTML = makeCardHTML(tDef);
+
+            document.getElementById('playerHand').innerHTML = pHand.map((c,i) => makeCardHTML(c, false, phase==='p_att'||phase==='p_def' ? `onclick="playCard(${i})"` : '')).join('');
+            document.getElementById('btnTake').style.display = (phase==='p_def' && tAtt) ? 'inline-block' : 'none';
+        }
+
+        function updateState(msg) { document.getElementById('gameStatus').innerText = msg; renderCards(); checkWin(); }
+
+        function startCards() {
+            let b = parseInt(document.getElementById('cardsBet').value), res = document.getElementById('cardsRes');
+            let err = checkBet(b); if(err){ res.innerHTML=`<span class='lose'>${err}</span>`; return; }
+            updateBal(-b); curBet = b;
+            
+            document.getElementById('cardsSetup').style.display = 'none'; document.getElementById('board').style.display = 'flex';
+            
+            deck = []; pHand = []; bHand = []; tAtt = null; tDef = null;
+            suits.forEach(s => vals.forEach(v => deck.push({s, v, n: vNames[v]||v, color: (s==='♥'||s==='♦')?'red':'black'})));
+            deck.sort(() => Math.random() - 0.5); // Простая тасовка
+            
+            for(let i=0; i<6; i++) { pHand.push(deck.pop()); bHand.push(deck.pop()); }
+            trump = deck[0];
+            
+            sortHand(pHand); phase = 'p_att'; updateState("Ваш ход! Выберите карту для атаки.");
+        }
+
+        function sortHand(h) { h.sort((a,b) => (a.s===trump.s ? a.v+100 : a.v) - (b.s===trump.s ? b.v+100 : b.v)); }
+        
+        function canBeat(defCard, attCard) {
+            if(defCard.s === attCard.s && defCard.v > attCard.v) return true;
+            if(defCard.s === trump.s && attCard.s !== trump.s) return true;
+            return false;
+        }
+
+        function drawCards() {
+            let pFirst = isPTurn;
+            while(pFirst && pHand.length<6 && deck.length>0) pHand.push(deck.pop());
+            while(bHand.length<6 && deck.length>0) bHand.push(deck.pop());
+            while(!pFirst && pHand.length<6 && deck.length>0) pHand.push(deck.pop());
+            sortHand(pHand); sortHand(bHand);
+        }
+
+        function playCard(idx) {
+            let c = pHand[idx];
+            if(phase === 'p_att') {
+                tAtt = pHand.splice(idx, 1)[0]; phase = 'b_def'; updateState("Бот думает...");
+                setTimeout(botDefend, 800);
+            } else if(phase === 'p_def') {
+                if(!canBeat(c, tAtt)) { alert("Эта карта не бьет!"); return; }
+                tDef = pHand.splice(idx, 1)[0]; updateState("Вы отбились!"); phase = 'idle';
+                setTimeout(() => { tAtt = null; tDef = null; drawCards(); isPTurn = true; phase = 'p_att'; updateState("Ваш ход!"); }, 1000);
             }
         }
 
-        // ---------- ЗАГРУЗКА КОМНАТ ----------
-        async function loadRooms() {
-            try {
-                const res = await fetch('/api/rooms');
-                const rooms = await res.json();
-                updateRoomList(rooms);
-            } catch(e) {}
+        function playerTake() {
+            pHand.push(tAtt); if(tDef) pHand.push(tDef);
+            tAtt = null; tDef = null; drawCards(); isPTurn = false; phase = 'b_att';
+            updateState("Вы взяли. Ход бота..."); setTimeout(botAttack, 1000);
         }
 
-        function updateRoomList(rooms) {
-            const container = document.getElementById('roomList');
-            if (!container) return;
-            if (!Array.isArray(rooms)) rooms = [];
-            if (rooms.length === 0) {
-                container.innerHTML = '<p style="color:white;">Нет доступных комнат. Создайте свою!</p>';
-                return;
-            }
-            container.innerHTML = rooms.map(r => {
-                const players = r.players || [];
-                const names = players.map(p => p.nickname).join(', ') || 'нет игроков';
-                const isFull = players.length >= r.maxPlayers;
-                return \`
-                    <div class="room-card">
-                        <h3>\${r.name}</h3>
-                        <p>Игра: \${r.gameType}</p>
-                        <p>Ставка: \${r.bet}$</p>
-                        <p>Игроки: \${players.length}/\${r.maxPlayers}</p>
-                        <p>\${names}</p>
-                        <button class="btn-wood" onclick="joinRoom('\${r._id}')" \${isFull ? 'disabled' : ''}>
-                            \${isFull ? 'Занято' : 'Войти'}
-                        </button>
-                    </div>
-                \`;
-            }).join('');
-        }
-
-        // ---------- СОЗДАНИЕ КОМНАТЫ ----------
-        function showCreateRoom() {
-            nav('createRoomScreen');
-        }
-
-        async function createRoom() {
-            const name = document.getElementById('roomName').value.trim();
-            const gameType = document.getElementById('gameTypeSelect').value;
-            const bet = parseInt(document.getElementById('roomBet').value);
-            if (!name) return;
-            if (bet < 10) { document.getElementById('createError').innerText = 'Ставка должна быть ≥ 10'; return; }
-            try {
-                const res = await fetch('/api/rooms', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, gameType, bet, userId: currentUser._id })
-                });
-                const data = await res.json();
-                if (data.error) { document.getElementById('createError').innerText = data.error; return; }
-                // Автоматически входим в созданную комнату
-                joinRoom(data._id);
-            } catch(e) {
-                document.getElementById('createError').innerText = 'Ошибка создания';
-            }
-        }
-
-        // ---------- ВХОД В КОМНАТУ ----------
-        function joinRoom(roomId) {
-            if (!socket) return;
-            socket.emit('joinRoom', { roomId, userId: currentUser._id });
-            // Сразу переключаем на игровой экран, ждём обновления
-            nav('gameScreen');
-            isInRoom = true;
-            currentRoom = roomId;
-            document.getElementById('gameStatus').innerText = 'Подключение к комнате...';
-            document.getElementById('gameContent').innerHTML = '';
-        }
-
-        // ---------- ПОКИДАНИЕ КОМНАТЫ ----------
-        function leaveRoom() {
-            if (socket && currentRoom) {
-                socket.emit('leaveRoom', { roomId: currentRoom, userId: currentUser._id });
-            }
-            currentRoom = null;
-            isInRoom = false;
-            nav('lobbyScreen');
-            loadRooms();
-        }
-
-        // ---------- ОБРАБОТКА ИГРОВЫХ СОБЫТИЙ ----------
-        function renderGameState(state) {
-            // state содержит { players, gameType, status, data, ... }
-            const container = document.getElementById('gameContent');
-            const statusEl = document.getElementById('gameStatus');
-            if (!state) return;
-            statusEl.innerText = state.statusText || '';
-            if (state.gameType === 'dice') {
-                renderDiceGame(container, state);
-            } else if (state.gameType === 'coin') {
-                renderCoinGame(container, state);
-            } else if (state.gameType === 'cards') {
-                renderCardsGame(container, state);
+        function botDefend() {
+            let valid = bHand.filter(c => canBeat(c, tAtt)).sort((a,b) => (a.s===trump.s?a.v+100:a.v) - (b.s===trump.s?b.v+100:b.v));
+            if(valid.length > 0) {
+                tDef = bHand.splice(bHand.indexOf(valid[0]), 1)[0]; updateState("Бот отбился.");
+                setTimeout(() => { tAtt = null; tDef = null; drawCards(); isPTurn = false; phase = 'b_att'; updateState("Ход бота..."); setTimeout(botAttack, 1000); }, 1000);
             } else {
-                container.innerHTML = '<p>Неизвестная игра</p>';
+                bHand.push(tAtt); tAtt = null; drawCards(); isPTurn = true; phase = 'p_att'; updateState("Бот взял карты. Ваш ход!");
             }
         }
 
-        function renderDiceGame(container, state) {
-            const players = state.players || [];
-            const results = state.results || {};
-            const myId = currentUser._id;
-            let html = '<div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center;">';
-            players.forEach(p => {
-                const isMe = p._id === myId;
-                const val = results[p._id] !== undefined ? results[p._id] : '?';
-                const color = isMe ? '#ffd54f' : '#fff';
-                html += \`
-                    <div style="background:rgba(0,0,0,0.6); padding:15px; border-radius:10px; text-align:center; min-width:100px;">
-                        <div style="color:white; font-weight:bold;">\${p.nickname} \${isMe ? '(вы)' : ''}</div>
-                        <div class="dice-result">\${val === '?' ? '🎲' : val}</div>
-                    </div>
-                \`;
-            });
-            html += '</div>';
-            // Если есть результат (победитель)
-            if (state.winner) {
-                const winner = state.winner;
-                const winAmount = state.winAmount || 0;
-                html += \`<div style="color:white; font-size:1.5rem; text-align:center; margin-top:15px;">
-                    🏆 Победил \${winner.nickname} (+ \${winAmount}$)
-                </div>\`;
-            }
-            // Если статус позволяет бросать
-            if (state.status === 'waiting_roll' && state.currentTurn === myId) {
-                html += \`<div style="text-align:center; margin-top:15px;">
-                    <button class="btn-wood" onclick="rollDice()">🎲 Бросить кости</button>
-                </div>\`;
-            } else if (state.status === 'waiting_roll') {
-                html += \`<div style="text-align:center; color:white; margin-top:15px;">Ожидаем ход другого игрока...</div>\`;
-            }
-            container.innerHTML = html;
+        function botAttack() {
+            if(bHand.length === 0) return checkWin();
+            sortHand(bHand); tAtt = bHand.shift(); phase = 'p_def'; updateState("Бот атаковал! Отбивайтесь или берите.");
         }
 
-        function renderCoinGame(container, state) {
-            const players = state.players || [];
-            const choices = state.choices || {};
-            const result = state.result; // 'heads' or 'tails'
-            const myId = currentUser._id;
-            let html = '<div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center;">';
-            players.forEach(p => {
-                const isMe = p._id === myId;
-                const choice = choices[p._id] || '?';
-                const color = isMe ? '#ffd54f' : '#fff';
-                html += \`
-                    <div style="background:rgba(0,0,0,0.6); padding:15px; border-radius:10px; text-align:center; min-width:100px;">
-                        <div style="color:white; font-weight:bold;">\${p.nickname} \${isMe ? '(вы)' : ''}</div>
-                        <div style="font-size:1.5rem;">\${choice === 'heads' ? '🦅' : choice === 'tails' ? '🪙' : '?'}</div>
-                    </div>
-                \`;
-            });
-            html += '</div>';
-            if (result) {
-                const resName = result === 'heads' ? 'Орёл' : 'Решка';
-                const winPlayers = state.winners || [];
-                const winAmount = state.winAmount || 0;
-                html += \`<div style="color:white; font-size:1.5rem; text-align:center; margin-top:15px;">
-                    Выпал: \${resName} 🎉<br>
-                    \${winPlayers.length ? 'Победители: ' + winPlayers.map(p => p.nickname).join(', ') + ' (+' + winAmount + '$)' : 'Никто не выиграл'}
-                </div>\`;
+        function checkWin() {
+            if(deck.length === 0) {
+                if(pHand.length === 0 && bHand.length === 0) { updateBal(curBet); alert("Ничья!"); endCards(); }
+                else if(pHand.length === 0) { updateBal(curBet*2); alert("Вы победили! Банк ваш."); endCards(); }
+                else if(bHand.length === 0) { alert("Бот победил! Вы проиграли ставку."); endCards(); }
             }
-            if (state.status === 'waiting_choice' && state.currentTurn === myId) {
-                html += \`<div style="text-align:center; margin-top:15px;">
-                    <button class="btn-wood" onclick="coinChoice('heads')">🦅 Орёл</button>
-                    <button class="btn-wood" onclick="coinChoice('tails')">🪙 Решка</button>
-                </div>\`;
-            } else if (state.status === 'waiting_choice') {
-                html += \`<div style="text-align:center; color:white; margin-top:15px;">Ожидаем выбор других игроков...</div>\`;
-            }
-            container.innerHTML = html;
         }
-
-        function renderCardsGame(container, state) {
-            // Заглушка для дурака – пока просто отображаем состояние
-            container.innerHTML = \`
-                <div style="color:white; text-align:center; padding:20px;">
-                    <h3>🃏 Дурак (в разработке)</h3>
-                    <p>Статус: \${state.status}</p>
-                    <p>Игроки: \${state.players.map(p => p.nickname).join(', ')}</p>
-                    <pre>\${JSON.stringify(state, null, 2)}</pre>
-                </div>
-            \`;
-        }
-
-        // ---------- ДЕЙСТВИЯ ИГРОКА ----------
-        function rollDice() {
-            if (!socket || !currentRoom) return;
-            socket.emit('diceRoll', { roomId: currentRoom, userId: currentUser._id });
-        }
-
-        function coinChoice(choice) {
-            if (!socket || !currentRoom) return;
-            socket.emit('coinChoice', { roomId: currentRoom, userId: currentUser._id, choice });
-        }
-
-        function handleGameResult(data) {
-            // Просто обновляем баланс, если пришло обновление
-            if (data.balance !== undefined) {
-                document.getElementById('balance').innerText = data.balance;
-                if (currentUser) currentUser.balance = data.balance;
-            }
-            // Можно показать уведомление
-        }
-
-        // ---------- ПЕРИОДИЧЕСКОЕ ОБНОВЛЕНИЕ КОМНАТ (для списка) ----------
-        setInterval(() => {
-            if (document.getElementById('lobbyScreen').classList.contains('active')) {
-                loadRooms();
-            }
-        }, 5000);
-
-        // Если пользователь закрыл вкладку, сообщаем серверу
-        window.addEventListener('beforeunload', () => {
-            if (socket && currentRoom) {
-                socket.emit('leaveRoom', { roomId: currentRoom, userId: currentUser?._id });
-            }
-        });
-
-        // Инициализация (при загрузке страницы)
-        nav('loginScreen');
     </script>
 </body>
 </html>
-`;
-
-// ---------- РАЗДАЧА СТАТИКИ ----------
-app.get('/', (req, res) => {
-    res.send(HTML);
-});
-
-// ---------- REST API ----------
-// Вход / регистрация
-app.post('/api/login', async (req, res) => {
-    const { nickname } = req.body;
-    if (!nickname) return res.json({ error: 'Введите ник' });
-    try {
-        let user = await User.findOne({ nickname });
-        if (!user) {
-            user = new User({ nickname, balance: 1000 });
-            await user.save();
-        }
-        res.json({ user });
-    } catch (e) {
-        res.json({ error: 'Ошибка сервера' });
-    }
-});
-
-// Список комнат
-app.get('/api/rooms', async (req, res) => {
-    try {
-        const rooms = await Room.find({ status: 'waiting' }).populate('players', 'nickname');
-        res.json(rooms);
-    } catch (e) {
-        res.status(500).json([]);
-    }
-});
-
-// Создание комнаты
-app.post('/api/rooms', async (req, res) => {
-    const { name, gameType, bet, userId } = req.body;
-    if (!name || !gameType || !userId) return res.json({ error: 'Не все данные' });
-    try {
-        // Проверим, не превышает ли ставка баланс пользователя
-        const user = await User.findById(userId);
-        if (!user) return res.json({ error: 'Пользователь не найден' });
-        if (bet > user.balance) return res.json({ error: 'Недостаточно золота' });
-        // Определим maxPlayers для дурака (только 2)
-        const maxPlayers = gameType === 'cards' ? 2 : 3;
-        const room = new Room({
-            name,
-            gameType,
-            bet,
-            maxPlayers,
-            players: [userId]
-        });
-        await room.save();
-        res.json(room);
-    } catch (e) {
-        res.json({ error: 'Ошибка создания комнаты' });
-    }
-});
-
-// ---------- SOCKET.IO ----------
-io.on('connection', (socket) => {
-    console.log('New socket connection:', socket.id);
-    let userId = null;
-
-    socket.on('setUser', (id) => {
-        userId = id;
-        socket.data.userId = id;
-    });
-
-    // Присоединение к комнате
-    socket.on('joinRoom', async ({ roomId, userId }) => {
-        try {
-            const room = await Room.findById(roomId).populate('players');
-            if (!room) return socket.emit('error', 'Комната не найдена');
-            if (room.status !== 'waiting') return socket.emit('error', 'Игра уже началась');
-            if (room.players.length >= room.maxPlayers) return socket.emit('error', 'Комната полна');
-            // Проверим, не в комнате ли уже этот игрок
-            if (!room.players.some(p => p._id.toString() === userId)) {
-                room.players.push(userId);
-                await room.save();
-                await room.populate('players');
-            }
-            // Добавляем сокет в комнату (socket.io room)
-            socket.join(roomId);
-            socket.data.roomId = roomId;
-            // Отправляем обновлённое состояние всем в комнате
-            io.to(roomId).emit('roomUpdate', await getRoomData(roomId));
-
-            // Если набралось maxPlayers, начинаем игру
-            if (room.players.length === room.maxPlayers) {
-                room.status = 'playing';
-                await room.save();
-                // Инициализируем игровое состояние
-                const gameState = initGame(room);
-                gameStates.set(roomId, gameState);
-                // Отправляем начальное состояние игры всем
-                io.to(roomId).emit('gameState', gameState);
-                // Также обновим список комнат для лобби (убираем ожидающие)
-                io.emit('roomUpdate', await getAllWaitingRooms());
-            } else {
-                // Обновляем список комнат для всех (чтобы отображались изменения)
-                io.emit('roomUpdate', await getAllWaitingRooms());
-            }
-        } catch (e) {
-            console.error(e);
-            socket.emit('error', 'Ошибка при входе в комнату');
-        }
-    });
-
-    // Выход из комнаты
-    socket.on('leaveRoom', async ({ roomId, userId }) => {
-        try {
-            const room = await Room.findById(roomId);
-            if (!room) return;
-            // Удаляем игрока
-            room.players = room.players.filter(id => id.toString() !== userId);
-            if (room.players.length === 0) {
-                // Если комната пуста, удаляем её
-                await Room.deleteOne({ _id: roomId });
-                gameStates.delete(roomId);
-                io.emit('roomUpdate', await getAllWaitingRooms());
-                socket.leave(roomId);
-                return;
-            }
-            // Если игра ещё не началась, просто обновляем
-            if (room.status === 'waiting') {
-                await room.save();
-                io.emit('roomUpdate', await getAllWaitingRooms());
-            } else {
-                // Если игра уже идёт, возможно нужно завершить игру (если остался 1 игрок)
-                room.status = 'finished';
-                await room.save();
-                // Удаляем состояние игры
-                gameStates.delete(roomId);
-                io.to(roomId).emit('roomDeleted');
-                io.emit('roomUpdate', await getAllWaitingRooms());
-            }
-            socket.leave(roomId);
-        } catch (e) {
-            console.error(e);
-        }
-    });
-
-    // Обработка броска костей
-    socket.on('diceRoll', async ({ roomId, userId }) => {
-        const state = gameStates.get(roomId);
-        if (!state || state.gameType !== 'dice') return;
-        if (state.status !== 'waiting_roll') return;
-        if (state.currentTurn !== userId) return; // не его ход
-
-        // Генерируем случайное число 1-6
-        const value = Math.floor(Math.random() * 6) + 1;
-        state.results[userId] = value;
-        // Находим следующего игрока, который ещё не бросил
-        const players = state.players;
-        let next = null;
-        for (let p of players) {
-            if (state.results[p._id] === undefined) {
-                next = p._id;
-                break;
-            }
-        }
-        if (next) {
-            state.currentTurn = next;
-            state.statusText = `Ход игрока ${players.find(p => p._id === next).nickname}`;
-            io.to(roomId).emit('gameState', state);
-        } else {
-            // Все бросили – определяем победителя
-            let maxVal = -1, winners = [];
-            for (let p of players) {
-                const val = state.results[p._id];
-                if (val > maxVal) { maxVal = val; winners = [p]; }
-                else if (val === maxVal) { winners.push(p); }
-            }
-            // Если несколько победителей – ничья (делим банк поровну)
-            const room = await Room.findById(roomId);
-            const totalBet = room.bet * players.length; // каждый поставил ставку
-            const winAmount = Math.floor(totalBet / winners.length);
-            // Обновляем балансы победителей
-            for (let w of winners) {
-                const user = await User.findById(w._id);
-                if (user) {
-                    user.balance += winAmount;
-                    await user.save();
-                }
-            }
-            // Возвращаем ставки проигравшим? Нет, они проигрывают свои ставки (они уже списаны при входе).
-            // Спишем ставки у всех игроков (кроме победителей) – они уже были списаны при создании игры? 
-            // В нашей модели мы не списываем ставку сразу, будем считать, что ставка списывается при входе в игру.
-            // Чтобы не усложнять, сделаем так: при старте игры списываем ставку у каждого.
-            // Для простоты сейчас мы не списывали, поэтому сделаем здесь.
-
-            // Итак, победители получают winAmount, проигравшие теряют свою ставку (у них уже списано).
-            // Но мы не списывали ранее, поэтому списываем сейчас с проигравших.
-            for (let p of players) {
-                const user = await User.findById(p._id);
-                if (!user) continue;
-                if (winners.some(w => w._id === p._id)) {
-                    // победитель уже получил выигрыш выше
-                } else {
-                    user.balance -= room.bet;
-                    await user.save();
-                }
-            }
-            // Обновляем состояние
-            state.status = 'finished';
-            state.winner = winners[0]; // если несколько, берём первого
-            state.winAmount = winAmount;
-            state.statusText = `Игра завершена! Победитель: ${winners.map(w => w.nickname).join(', ')}`;
-            io.to(roomId).emit('gameState', state);
-            // Отправляем обновление баланса каждому игроку
-            for (let p of players) {
-                const user = await User.findById(p._id);
-                if (user) {
-                    io.to(socket.id).emit('gameResult', { balance: user.balance }); // но это только текущему сокету, надо всем
-                }
-            }
-            // Рассылаем всем в комнате обновление баланса
-            for (let p of players) {
-                const user = await User.findById(p._id);
-                if (user) {
-                    io.to(roomId).emit('gameResult', { balance: user.balance, userId: p._id });
-                }
-            }
-            // Через некоторое время удаляем комнату или переводим в ожидание
-            setTimeout(async () => {
-                await Room.deleteOne({ _id: roomId });
-                gameStates.delete(roomId);
-                io.emit('roomUpdate', await getAllWaitingRooms());
-                io.to(roomId).emit('roomDeleted');
-            }, 5000);
-        }
-    });
-
-    // Обработка выбора в монетке
-    socket.on('coinChoice', async ({ roomId, userId, choice }) => {
-        const state = gameStates.get(roomId);
-        if (!state || state.gameType !== 'coin') return;
-        if (state.status !== 'waiting_choice') return;
-        if (state.currentTurn !== userId) return;
-
-        state.choices[userId] = choice;
-        // Находим следующего не выбравшего
-        const players = state.players;
-        let next = null;
-        for (let p of players) {
-            if (state.choices[p._id] === undefined) {
-                next = p._id;
-                break;
-            }
-        }
-        if (next) {
-            state.currentTurn = next;
-            state.statusText = `Выбор игрока ${players.find(p => p._id === next).nickname}`;
-            io.to(roomId).emit('gameState', state);
-        } else {
-            // Все выбрали – бросаем монету
-            const result = Math.random() >= 0.5 ? 'heads' : 'tails';
-            state.result = result;
-            // Определяем победителей
-            const winners = players.filter(p => state.choices[p._id] === result);
-            const room = await Room.findById(roomId);
-            const totalBet = room.bet * players.length;
-            const winAmount = winners.length > 0 ? Math.floor(totalBet / winners.length) : 0;
-            // Обновляем балансы
-            for (let p of players) {
-                const user = await User.findById(p._id);
-                if (!user) continue;
-                if (winners.some(w => w._id === p._id)) {
-                    user.balance += winAmount;
-                } else {
-                    user.balance -= room.bet;
-                }
-                await user.save();
-            }
-            state.status = 'finished';
-            state.winners = winners;
-            state.winAmount = winAmount;
-            state.statusText = `Игра завершена! Выпал ${result === 'heads' ? 'Орёл' : 'Решка'}. Победители: ${winners.map(w => w.nickname).join(', ')}`;
-            io.to(roomId).emit('gameState', state);
-            // Рассылаем обновление баланса
-            for (let p of players) {
-                const user = await User.findById(p._id);
-                if (user) {
-                    io.to(roomId).emit('gameResult', { balance: user.balance, userId: p._id });
-                }
-            }
-            // Удаляем комнату через 5 секунд
-            setTimeout(async () => {
-                await Room.deleteOne({ _id: roomId });
-                gameStates.delete(roomId);
-                io.emit('roomUpdate', await getAllWaitingRooms());
-                io.to(roomId).emit('roomDeleted');
-            }, 5000);
-        }
-    });
-
-    // Отключение
-    socket.on('disconnect', async () => {
-        // Найдём комнаты, где был этот игрок, и удалим его
-        if (socket.data.roomId) {
-            const roomId = socket.data.roomId;
-            try {
-                const room = await Room.findById(roomId);
-                if (room) {
-                    room.players = room.players.filter(id => id.toString() !== socket.data.userId);
-                    if (room.players.length === 0) {
-                        await Room.deleteOne({ _id: roomId });
-                        gameStates.delete(roomId);
-                        io.emit('roomUpdate', await getAllWaitingRooms());
-                    } else {
-                        if (room.status === 'waiting') {
-                            await room.save();
-                            io.emit('roomUpdate', await getAllWaitingRooms());
-                        } else {
-                            // Если игра шла, завершаем
-                            room.status = 'finished';
-                            await room.save();
-                            gameStates.delete(roomId);
-                            io.to(roomId).emit('roomDeleted');
-                            io.emit('roomUpdate', await getAllWaitingRooms());
-                        }
-                    }
-                }
-            } catch (e) {}
-        }
-    });
-});
-
-// ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
-async function getAllWaitingRooms() {
-    const rooms = await Room.find({ status: 'waiting' }).populate('players', 'nickname');
-    return rooms;
-}
-
-async function getRoomData(roomId) {
-    return await Room.findById(roomId).populate('players', 'nickname');
-}
-
-function initGame(room) {
-    const players = room.players;
-    const gameType = room.gameType;
-    const state = {
-        gameType,
-        players: players.map(p => ({ _id: p._id, nickname: p.nickname })),
-        status: 'waiting_roll', // для костей
-        results: {},
-        currentTurn: players[0]._id,
-        statusText: `Ход игрока ${players[0].nickname}`,
-        // для монетки
-        choices: {},
-        result: null,
-        winners: [],
-        winAmount: 0,
-        winner: null
-    };
-    if (gameType === 'coin') {
-        state.status = 'waiting_choice';
-        state.statusText = `Выбор игрока ${players[0].nickname}`;
-        state.choices = {};
-    }
-    return state;
-}
-
-// ---------- ЗАПУСК СЕРВЕРА ----------
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
-});
