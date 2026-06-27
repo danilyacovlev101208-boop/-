@@ -2,11 +2,92 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Мой сайт с котом</title>
+    <title>Кот с анимацией</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f0f4f8;
+            padding: 20px;
+        }
+        .cat-container {
+            margin-top: 30px;
+        }
+        #cat {
+            max-width: 80%;
+            height: auto;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            /* Начальное состояние – все анимации стартуют из прозрачности */
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+        }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.9); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes rotateIn {
+            from { opacity: 0; transform: rotate(-15deg) scale(0.7); }
+            to   { opacity: 1; transform: rotate(0) scale(1); }
+        }
+        @keyframes bounceIn {
+            0%   { opacity: 0; transform: scale(0.3); }
+            50%  { opacity: 1; transform: scale(1.05); }
+            70%  { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        /* Классы-триггеры */
+        .anim-fade   { animation: fadeIn   0.8s ease forwards; }
+        .anim-slide  { animation: slideUp  0.8s ease forwards; }
+        .anim-scale  { animation: scaleIn  0.8s ease forwards; }
+        .anim-rotate { animation: rotateIn 0.8s ease forwards; }
+        .anim-bounce { animation: bounceIn 0.9s ease forwards; }
+    </style>
 </head>
 <body>
-    <h1>Добро пожаловать!</h1>
-    <!-- Картинка кота -->
-    <img src="https://cataas.com/cat" alt="Котик" style="max-width: 100%; height: auto;">
+    <h1>🐱 Пошёл нхуй!</h1>
+    <div class="cat-container">
+        <img id="cat" src="https://cataas.com/cat" alt="Котик">
+    </div>
+
+    <script>
+        window.addEventListener('load', function() {
+            const img = document.getElementById('cat');
+
+            // Список доступных анимаций
+            const animations = [
+                'anim-fade',
+                'anim-slide',
+                'anim-scale',
+                'anim-rotate',
+                'anim-bounce'
+            ];
+
+            // Выбираем одну случайную
+            const randomAnim = animations[Math.floor(Math.random() * animations.length)];
+
+            // Применяем анимацию после загрузки картинки
+            const applyAnimation = () => {
+                img.classList.add(randomAnim);
+            };
+
+            if (img.complete) {
+                applyAnimation();
+            } else {
+                img.onload = applyAnimation;
+            }
+        });
+    </script>
 </body>
 </html>
